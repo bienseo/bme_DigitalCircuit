@@ -1,3 +1,7 @@
+/*
+Chattering example
+*/
+
 #include<avr/io.h>
 #include<stdio.h>
 #include<util/delay.h>
@@ -19,7 +23,7 @@ void port_init(void)
 	DDRD = 0x00;
 	DDRE = 0x00;
 	DDRF = 0x00;
-	DDRG = 0x03;
+	DDRG = 0xF3;
 
 }
 
@@ -28,12 +32,16 @@ void main(void)
 	port_init();
 	while(1)
 	{
-		if(PING == 0x04){
+		if(PING & 0x04){
+			while(PING & 0x04);
 			PORTG = 0x01;
+			while(PING & 0x04);
 			_delay_ms(100);
 		}
 		else if(PING == 0x08){
+			while(PING & 0x08);
 			PORTG = 0x02;
+			while(PING & 0x08);
 			_delay_ms(100);
 		}
 		_delay_ms(1000);
