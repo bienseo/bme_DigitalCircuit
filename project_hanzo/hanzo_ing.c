@@ -9,8 +9,10 @@
 
 # define HIGH 1
 # define LOW 0
-unsigned int dot_int[8] = { 0x42, 0x42, 0x42, 0x42, 0x7e, 0x42, 0x42, 0x42 }; // dotmatrix anode(VCC) 
+unsigned int dot_int[8] = { 0x42, 0x42, 0x42, 0x42, 0x7e, 0x42, 0x42, 0x42 }; // "H" dotmatrix anode(VCC) 
 unsigned int dot_int_GND[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 }; // dotmatrix cathode(GND)
+unsigned int target_int[8] = { 0xff, 0x81, 0x81, 0x99, 0x99, 0x81, 0x81,0xff };
+
 
 // delay
 void delay(int n)
@@ -60,14 +62,23 @@ ISR(INT1_vect)
 // dotmatrix initialize: display "H"
 void dotmatrix_int(void)
 {
-        int i;
-
+    int i;
+    while(1){
         for(i = 0; i < 8; i++){
             PORTE = dot_int[i]; // "H" for Hanzo
             PORTA = dot_int_GND[i];
             delay_ms(2); 
         }
-    
+    }    
+        delay(500);
+
+    while(1){  
+        for(i = 0; i < 8; i++){
+            PORTE = target_int[i]; // "H" for Hanzo
+            PORTA = dot_int_GND[i];
+            delay_ms(2); 
+        }
+    }
 }
 
 // LED
@@ -76,26 +87,45 @@ void red_led(void){ PORTC = 0x40; } // stop and pause
 
 // on going
 void display(unsigned int num); //using switch and case -> make sate and flow
-void get_flex(void) //unsigned int v_flex
+void get_flex(unsigned int v_flex) // sign: starting the game
 {
     PORTC = 0x01;
     //using switch and case -> make sate and flow
 
 }
-void get_force(void) //unsigned int v_force 
+void get_force(unsigned int v_force) // get the value of strength
 {
     PORTC = 0x02;
     //using switch and case -> make sate and flow
 }
+void is_change(unsigned int direction){
+    return direction;
+} // the flex sensor on the wrist: get direction
+
 
 // main script
 int main(void)
 {
-    port_init();
-    dotmatrix_int();
+    unsigned int v_flex, v_force, direction;
+    int i,j; // iteration term
+
+    port_init(); // All port initialize
+    dotmatrix_int(); // Dotmatrix initialize: display "H"
     EIMSK =0x02;
     EICRA = 0xAA;
     SREG = 0x80;
+
+    red_led(); // stop sign
+    if (v_flex > 0){
+        get_flex(v_flex);
+        get_force(v_force);
+        change_dir = is_change(direction);
+        if (){
+
+        }
+
+
+    }
 
 
 
