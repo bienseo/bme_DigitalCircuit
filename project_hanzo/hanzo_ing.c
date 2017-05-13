@@ -10,8 +10,8 @@
 # define HIGH 1
 # define LOW 0
 unsigned int dot_int[8] = { 0x42, 0x42, 0x42, 0x42, 0x7e, 0x42, 0x42, 0x42 }; // "H" dotmatrix anode(VCC) 
-unsigned int dot_int_GND[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 }; // dotmatrix cathode(GND)
-unsigned int target_int[8] = { 0xff, 0x81, 0x81, 0x99, 0x99, 0x81, 0x81,0xff };
+unsigned int dot_int_GND[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 }; 2
+unsigned int target_int[8] = { 0xff, 0x81, 0x81, 0x99, 0x99, 0x81, 0x81,0xff }; // target
 
 
 // delay
@@ -103,17 +103,41 @@ void is_change(unsigned int direction){
 } // the flex sensor on the wrist: get direction
 
 
+void ADC_int(unsigned char channel){
+    ADMUX |= (1 << REFS0);              // AVCC를 기준 전압으로 선택
+    ADCSRA |= 0x07; //분주비 설정
+    ADCSRA |= (1 << ADEN); // ADC 활성화
+    ADCSRA |= (1 << ADFR); // 프리 러닝 모드 
+
+    ADMUX = ((ADMUX & 0xe0) | channel); // 채널 선택
+    ADCSRA |= (1<<ADSC); // 변환 시작
+
+}
+
+int read_ADC(void){
+    while(!(ADCSRA & (1 << ADIF))); //변환 종료 대기
+
+    return ADC; // 10 비트 값을 반환
+}
+
 // main script
 int main(void)
 {
     unsigned int v_flex, v_force, direction;
     int i,j; // iteration term
+    int read_val;
 
     port_init(); // All port initialize
     dotmatrix_int(); // Dotmatrix initialize: display "H"
+    ADC_int(); // ADC initialize
     EIMSK =0x02;
     EICRA = 0xAA;
     SREG = 0x80;
+    while(1){
+        read_val = read_ADC(); // 가변 저항값 읽기
+        printf("%d\n",read_val);
+        _dealy_ms(1000);
+    }
 
     red_led(); // stop sign
     if (v_flex > 0){
