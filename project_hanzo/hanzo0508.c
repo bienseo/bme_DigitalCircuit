@@ -9,8 +9,10 @@
 #include<avr/interrupt.h>
 #include<util/delay.h> // _delay_ms();
 
-# define HIGH 1
-# define LOW 0
+# define HIGH 1 // high = 1
+# define LOW 0 // low = 0 
+
+// dotmatrix display 
 unsigned int dot_int[8] = { 0x42, 0x42, 0x42, 0x42, 0x7e, 0x42, 0x42, 0x42 }; // "H" dotmatrix anode(VCC) 
 unsigned int dot_int_GND[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 }; // dotmatrix cathode(GND)
 unsigned int target_int[8] = { 0xff, 0x81, 0x81, 0x99, 0x99, 0x81, 0x81,0xff }; // target
@@ -19,20 +21,23 @@ unsigned int count_disp[4][8] = {
    {0x38, 0x44, 0x04, 0x04, 0x08, 0x10, 0x20, 0x7e}, // 2
    {0x3c, 0x42, 0x02, 0x1c, 0x02, 0x02, 0x42, 0x3c}, // 3
    {0x04, 0x0c, 0x14, 0x14, 0x24, 0x7e, 0x04, 0x04}, // 4 
-};
+}; // display count number(cnt = 1,2,3,4)
 
-unsigned int v_flex, v_force, direction;
+// variables 
+unsigned int v_flex, v_force; // flex sensor 1 voltage, force sensor voltage
+unsigned int direction; // flex sensor 2 voltage change 
 
+// functions 
 void delay(int n); // delay
 void port_init(void); // port initialize
 ISR(INT1_vect); // external interrupt
 void green_led(void){ PORTC = 0x80; } // start
 void red_led(void){ PORTC = 0x40; } // stop and pause
 void dotmatrix_int(void); // dotmatrix initialize: display target after showing "H"  
+void count_display(int cnt); // display count number(cnt = 1,2,3,4)
 
 // on going
-void display(unsigned int num); //using switch and case -> make sate and flow
-void cout_display(int cnt);
+void display(unsigned int num); //using switch and case -> make sate and flows
 void ADC_int(unsigned char channel); // ADC port initialize
 int read_ADC(void); // read value
 void get_flex(unsigned int v_flex); //using switch and case -> make sate and flow
@@ -43,8 +48,7 @@ void is_change(unsigned int direction); // the flex sensor on the wrist: get dir
 // main script
 int main(void)
 {
-   int i,j; // iteration term
-   int cnt = 4;
+   int i,j,cnt; // iteration term
 
    port_init(); // All port initialize
    dotmatrix_int(); // Dotmatrix initialize: display "H"
@@ -57,16 +61,17 @@ int main(void)
    green_led(); // start sign
    delay(500);
 
-   cout_display(cnt); // display: 4
+   cnt = 4;
+   count_display(cnt); // display: 4
    delay(500);
    cnt--;
-   cout_display(cnt); // display: 3
+   count_display(cnt); // display: 3
    delay(500);
    cnt--;
-   cout_display(cnt); // display: 2
+   count_display(cnt); // display: 2
    delay(500);
    cnt--;
-   cout_display(cnt); // display: 1
+   count_display(cnt); // display: 1
    delay(500);
 
 }
@@ -132,7 +137,7 @@ void dotmatrix_int(void)
    }
 }
 
-void cout_display(int cnt)
+void count_display(int cnt)
 {
    int i;
    while(1){
