@@ -17,13 +17,11 @@
 unsigned int dot_int[8] = {0x00, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C, 0x3C,0x00 }; // "H" dotmatrix anode(VCC) 
 unsigned int dot_int_GND[8] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80 }; // dotmatrix cathode(GND)
 unsigned int target_int[8] = { 0x66, 0x77, 0x77, 0x00, 0x00, 0x77, 0x77,0x66 }; // target
-
-// bien: change counting number later
 unsigned int count_disp[4][8] = {
-   {0x08, 0x18, 0x08, 0x08, 0x08, 0x08, 0x08, 0x1c}, // 1
-   {0x38, 0x44, 0x04, 0x04, 0x08, 0x10, 0x20, 0x7e}, // 2
-   {0x3c, 0x42, 0x02, 0x1c, 0x02, 0x02, 0x42, 0x3c}, // 3
-   {0x04, 0x0c, 0x14, 0x14, 0x24, 0x7e, 0x04, 0x04}, // 4 
+   { 0xF7, 0xF7, 0xF7, 0xC3, 0xF7, 0xE7, 0xF7, 0xF7 }, // 1
+   { 0xF7, 0xEF, 0xDF, 0x81, 0xC7, 0xBB, 0xFB, 0xFB }, // 2
+   { 0xFD, 0xFD, 0xBD, 0xC3, 0xC3, 0xBD, 0xFD, 0xE3 }, // 3
+   { 0xDB, 0x81, 0xFB, 0xFB, 0xFB, 0xF3, 0xEB, 0xEB } // 4 
 }; // display count number(cnt = 0,1,2,3)
 
 // variables 
@@ -34,12 +32,11 @@ unsigned int direction; // flex sensor 2 voltage change
 void delay(int n); // delay
 void port_init(void); // port initialize
 ISR(INT1_vect); // external interrupt
-void dotmatrix_int(void); // dotmatrix initialize: display "H"  
-void target_display(void); // display target
-// bien: change counting number later
-void count_display(int cnt); // display count number(cnt = 1,2,3,4)
 void green_led(void);// start
 void red_led(void); // stop and pause
+void dotmatrix_int(void); // dotmatrix initialize: display "H"  
+void target_display(void); // display target
+void count_display(int cnt); // display count number(cnt = 1,2,3,4)
 
 // on going
 void display(unsigned int num); //using switch and case -> make sate and flows
@@ -54,35 +51,45 @@ void is_change(unsigned int direction); // the flex sensor on the wrist: get dir
 // main script
 int main(void)
 {
-   int cnt;
+   int cnt = 3;
 
    port_init(); // All port initialize
    dotmatrix_int(); // Dotmatrix initialize: display "H"
+   delay(500);
+
    EIMSK =0x02;
    EICRA = 0xAA;
    SREG = 0x80;
 
-   red_led();  // stop sign
+   // all LED ON 
+   PORTF = 0x03;
    delay(500);
 
-   target_display();
+   do{
 
-   green_led(); // start sign
-   delay(500);   
+      red_led(); // stop sign
 
-   cnt = 3;
-   count_display(cnt); // display: 4
-   delay(500);
-   cnt--;
-   count_display(cnt); // display: 3
-   delay(500);
-   cnt--;
-   count_display(cnt); // display: 2
-   delay(500);
-   cnt--;
-   count_display(cnt); // display: 1
-   delay(500);   
+      target_display(); // display "target"
 
+      green_led(); // start sign
+
+      count_display(cnt); // display: 4
+      delay(500);
+      cnt--;
+
+      count_display(cnt); // display: 3
+      delay(500);
+      cnt--;
+
+      count_display(cnt); // display: 2
+      delay(500);
+      cnt--;
+
+      count_display(cnt); // display: 1
+      delay(500);
+      cnt--;
+
+   }while(cnt > 0);
 }
 
 
@@ -102,7 +109,7 @@ void port_init(void)
    PORTC = 0xFF; // dotmatrix GND
    PORTD = 0x00;
    PORTF = 0x00;
-   PORTE = 0x03;
+   PORTE = 0x00;
    PORTG = 0x00;
 
    DDRA = 0xFF; // dotmatrix VCC 
@@ -110,7 +117,7 @@ void port_init(void)
    DDRC = 0xFF; // dotmatrix GND
    DDRD = 0x00;
    DDRE = 0x00;
-   DDRF = 0x03;
+   DDRF = 0xFF; // LEDs and ADC(flex and force) 
    DDRG = 0x03;
 }
 
@@ -125,59 +132,56 @@ ISR(INT1_vect)
 }
 
 void dotmatrix_int(void) // PORTA, PORTC
-{
+{  
+   // display "H" for Hanzo
    int i;
 
-   while(1){
-      for(i = 0; i < 8; i++){
-         PORTA = dot_int[i]; // "H" for Hanzo
-         PORTC = dot_int_GND[i];
-         _delay_ms(2); 
-      }
+   for(i = 0; i < 8; i++){
+      PORTA = dot_int[i]; 
+      PORTC = dot_int_GND[i];
+      _delay_ms(2); 
    }    
    delay(500); // bien: change while conditon later
 }
 
-void target_display(void)
-{
+void target_display(void)// PORTA, PORTC
+{  
+   // display "target"
    int i;
 
-   while(1){  
-      for(i = 0; i < 8; i++){
-         PORTA = target_int[i]; // "target" for Hanzo
-         PORTC = dot_int_GND[i];
-         _delay_ms(2); 
-      }
+   for(i = 0; i < 8; i++){
+      PORTA = target_int[i];
+      PORTC = dot_int_GND[i];
+      _delay_ms(2); 
    }   
    delay(500);
 }
 
 // bien: change counting number later
 void count_display(int cnt) // PORTA, PORTC
-{
+{  
+   // display count number(cnt = 0,1,2,3)
    int i;
-
-   while(1){
-      for(i = 0; i < 8; i++){
-         PORTA = count_disp[cnt][i]; // display count number(cnt = 0,1,2,3)
-         PORTC = dot_int_GND[i];
-         _delay_ms(2); 
-      }
+   
+   for(i = 0; i < 8; i++){
+      PORTA = count_disp[cnt][i];
+      PORTC = dot_int_GND[i];
+      _delay_ms(2); 
    }
    delay(500);    
 }
 
 
 void green_led(void){
-
+   // PF0: Green LED for "START sign"
    DDRF = 0x01;
    PORTF = 0x01;
-
+   delay(500);
 }
 
 void red_led(void){
-
+   // PF1: Red LED for "STOP sign"
    DDRF = 0x02;
    PORTF = 0x02;
-
+   delay(500);
 }
