@@ -10,9 +10,7 @@
 #include <util/delay.h> // _delay_ms();
 
 // set variables		             
-volatile int t_count; // timer count variable
-
-// volatile unsigned int direction;           // direction change: switch
+volatile int t_count = 0; // timer count variable
 
 /*
 	Dotmatrix display(0 = on, 1 = off)
@@ -37,12 +35,7 @@ unsigned int arrow_disp[8][8] = {
    { 0xFF, 0xFF, 0xFF, 0xFF, 0xD7, 0xFF, 0xFF, 0xFF },
    { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
 }; // arrow animation
-
-//unsigned int dot_all[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // display all
-
-// display final result
-// column0: force(y axis), column1: direction(x axis)
-//unsigned int final_disp[4][2];
+unsigned int dot_all[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // display all
 
 /*
     Functions
@@ -54,13 +47,41 @@ void green_led(void);         	 // PB0: Green LED for "START sign"
 void red_led(void);          	 // PB1: Red LED for "STOP sign"
 void dotmatrix_init(void);   	 // dotmatrix initialize: display "H"  
 void target_display(void);    	 // display target
-void count_display(int cnt); 	 // display count number(cnt = 0,1,2,3)
+void count_display(int cnt, int disp_j); 	 // display count number(cnt = 0,1,2,3)
+void count_down(void); 			 // count down 3, 2, 1
 void arrow_display(void);     	 // display arrow animation
 // ADC functions 
 void ADC_init(void);           		 // ADC port initialize
 unsigned int read_ADC(int channel);	 // read ADC value 
 void display_all(void);    // display all LED
+void timer_init(void) // Timer initialize
+{
+    TCCR0=0x07; // 1024 from prescaler
+    TIMSK=0x02; // enable overflow
+    ACSR=0x80;
+    TCNT0=0x64; // TCNT0 = 100
+    OCR0=0x00;
+    ASSR=0x00;
+    ETIMSK=0x00;
+    SFIOR=0x00;
+}
 
+ISR(TIMER0_OVF_vect) // if: TCNT0 overflow jump to here
+{	
+	int i;
+	if (t_count > 30)
+	{	
+		arrow_display();
+		_delay_ms(100);
+		t_count = 0;
+	}
+   	else {
+   		i = t_count / 10;
+   		count_display(i, 30);
+   		t_count++;
+   	}
+   	TCNT0 = 0x64; // TCNT0 = 100
+}
 
 
 /*
@@ -79,12 +100,14 @@ int main(void)
 	red_led();
 	dotmatrix_init(50);
 	maintain_disp();
-	count_display(3);
+	count_display(3,50); // 4
 
 	while(1)
 	{
 		green_led();
 		target_display();
+		maintain_disp();
+		count_down();
 
 		flex_val = read_ADC(0);
 		if ((flex_val > 50) && (flex_val < 100)){ // flex bent
@@ -108,9 +131,8 @@ int main(void)
 		}
 	}
 
-	while(1){
-
-	}
+// on going	
+	sei();
 
 }
 
@@ -204,11 +226,11 @@ void target_display(void)// PORTA, PORTC
    PORTA = 0xFF;
 }
 
-void count_display(int cnt)
+void count_display(int cnt, int disp_j)
 {
    // display count number(cnt = 0,1,2,3)
    int i,j;
-   for (j = 0; j < 50; j++){
+   for (j = 0; j < disp_j; j++){
       for (i = 0; i < 8; i++){
          PORTA = count_disp[cnt][i];
          PORTC = dot_int_GND[i];
@@ -218,6 +240,14 @@ void count_display(int cnt)
    PORTA = 0xFF;
 }
 
+void count_down(void) // 3, 2, 1
+{
+	int i = 3;
+	while(i != 0){
+		count_display(i-1, 40);
+		i--;	
+	}
+}
 void arrow_display(void)
 {
    // display arrow animation
@@ -246,6 +276,7 @@ unsigned int read_ADC(int channel) // PF0 channel = 0
 {
    unsigned int result = 0;
    ADC_init();
+   _delay_ms(100);
 
    ADMUX = channel; // AVCC: 4.6V, PF0: flex sensor
    ADMUX |= (0<<REFS1 | 1<<REFS0); 
