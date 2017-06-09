@@ -25,6 +25,7 @@ unsigned int count_disp[4][8] = {
 }; // display count number(cnt = 0,1,2,3)
 
 // ADC variables 
+unsigned int ADC_val;
 unsigned int v_flex, v_force; // flex sensor 1 voltage, force sensor voltage
 unsigned int direction;       // flex sensor 2 voltage change 
 
@@ -38,11 +39,14 @@ void dotmatrix_int(void);     // dotmatrix initialize: display "H"
 void target_display(void);    // display target
 void count_display(int cnt);  // display count number(cnt = 1,2,3,4)
 
+void ADC_int(void); // ADC port initialize
+int read_ADC(void); // read value
+
 // on going
 void display(unsigned int num); // using switch and case -> make sate and flows
 
-void ADC_int(unsigned char channel); // ADC port initialize
-int read_ADC(void); // read value
+
+
 void get_flex(unsigned int v_flex); // using switch and case -> make sate and flow
 void get_force(unsigned int v_force); // using switch and case -> make sate and flow
 void is_change(unsigned int direction); // the flex sensor on the wrist: get direction
@@ -65,31 +69,28 @@ int main(void)
    PORTF = 0x03;
    delay(500);
 
-   do{
+   red_led(); // stop sign
 
-      red_led(); // stop sign
+   target_display(); // display "target"
 
-      target_display(); // display "target"
+   green_led(); // start sign
 
-      green_led(); // start sign
+   count_display(cnt); // display: 4
+   delay(500);
+   cnt--;
 
-      count_display(cnt); // display: 4
-      delay(500);
-      cnt--;
+   count_display(cnt); // display: 3
+   delay(500);
+   cnt--;
 
-      count_display(cnt); // display: 3
-      delay(500);
-      cnt--;
+   count_display(cnt); // display: 2
+   delay(500);
+   cnt--;
 
-      count_display(cnt); // display: 2
-      delay(500);
-      cnt--;
+   count_display(cnt); // display: 1
+   delay(500);
 
-      count_display(cnt); // display: 1
-      delay(500);
-      cnt--;
 
-   }while(cnt > 0);
 }
 
 
@@ -182,8 +183,28 @@ void green_led(void){
 }
 
 void red_led(void){
-   // PF1: Red LED for "STOP sign"
-   DDRF = 0x02;
-   PORTF = 0x02;
+   // PF1: Red LED for "STOP sign" PF2
+   DDRF = 0x04;
+   PORTF = 0x04;
    delay(500);
 }
+
+void ADC_int(void){
+   ADMUX=0xD0; //  bien: PF4 ::내부전압 사용, PORTF0 사용
+   ADCSRA=0xA7; // free running mode
+   delay(500);
+}
+
+int read_ADC(void){
+   unsigned int adcVectL, adcVectH;
+
+   ADC_int();
+   adcVectL = ADCL;
+   adcVectH = ADCH;
+   ADC_val = adcVectL + (adcVectH << 8);
+   printf("ADC value is : %d\n", ADC_val);
+   _delay_ms(500);
+
+   return ADC_val; 
+}
+

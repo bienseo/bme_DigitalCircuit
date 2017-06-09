@@ -12,7 +12,7 @@
 // set variables
 volatile int chance = 4; 			             // Chance for shooting	  
 volatile unsigned char adcVectL, adcVectH;    // ADC Low byte, High byte
-volatile unsigned int adc_val;
+volatile unsigned int adc_val = 0;
 volatile int t_count; // timer count variable
 
 // volatile unsigned int direction;           // direction change: switch
@@ -38,6 +38,7 @@ unsigned int arrow_disp[8][8] = {
    { 0xFF, 0xFF, 0xFF, 0xFF, 0xD7, 0xFF, 0xFF, 0xFF },
    { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF }
 }; // arrow animation
+unsigned int dot_all[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 }; // display all
 
 // display final result
 // column0: force(y axis), column1: direction(x axis)
@@ -52,6 +53,7 @@ void dotmatrix_init(void);    // dotmatrix initialize: display "H"
 void target_display(void);    // display target
 void count_display(int cnt);  // display count number(cnt = 0,1,2,3)
 void arrow_display(void);     // display arrow animation
+void display_all(int adc_column);
 
 // ADC functions 
 void ADC_init(void);           // ADC port initialize
@@ -88,6 +90,7 @@ ISR(TIMER0_OVF_vect) // if: TCNT0 overflow jump to here
    else{ t_count++; }
    TCNT0 = 0x64; // TCNT0 = 100
 }*/
+
 /*
 ISR(INT0_vect) // PD0(INT0)
 {
@@ -102,6 +105,11 @@ SREG = 0x80; // Global interrupt enable
    //EICRA = 0xAA; // trigger low edge 
    }
 */
+ISR(ADC_vect)
+{
+
+}
+
 
 /*
    Main script
@@ -110,7 +118,8 @@ int main(void)
 {
    int cnt = 3; // counting number
    int c_num = chance; // chance number
-   unsigned int flex_test;
+   unsigned int flex_test,flex_comp;
+   // int find_col;
    //SREG = 0x80; // Global interrupt enable
    //EIMSK =0x01; // External interrupt mask: INT0
    //EICRA = 0xAA; // trigger low edge 
@@ -118,35 +127,52 @@ int main(void)
    dotmatrix_init();
    red_led();
 
-   while(chance != 0){
+   while(c_num != 0){
       green_led();
       target_display();
+
       arrow_display();
-      get_flex(chance);
+      flex_comp = adc_val;
+      flex_test = get_flex(chance);
+
       red_led();
       green_led();
       red_led();
       green_led();
 
-      if (cnt < 0){ cnt = 3; }
-      //count_display(cnt);
-      cnt--;
-      //final_disp[4-chance][0] = get_force(c_num);
-      //final_disp[4-chance][1] = get_flex(c_num);
-      chance--;
-      flex_test = adc_val;
-      if ((flex_test > 200)&&(flex_test < 400)){ // resting:256 ...12.xx?
-         dotmatrix_init();
-         count_display(0);
+      if (flex_comp != flex_test){
+
+         if (cnt < 0){ cnt = 3; }
+         //count_display(cnt);
+         cnt--;
+         //final_disp[4-chance][0] = get_force(c_num);
+         //final_disp[4-chance][1] = get_flex(c_num);
+         c_num--;
+         //flex_test = adc_val;
+         if ((flex_test > 200)&&(flex_test < 400)){ // resting:256 ...12.xx?
+            dotmatrix_init();
+            count_display(0);
+         }
+         else if ((flex_test > 70)&&(flex_test < 150)){ // bent:113
+            dotmatrix_init();
+            count_display(1);
+         }
+         else{
+            count_display(cnt);
+         }
       }
-      else if ((flex_test > 70)&&(flex_test < 150)){ // bent:113
-         dotmatrix_init();
-         count_display(1);
-      }
-      else{
-         count_display(cnt);
-      }
+      else{ count_display(4); }
    }
+
+   /* other solution for case distribution 3 case (0, 45, 90)
+   while(1){
+      flex_test = get_flex(chance);
+      find_col = flex_test / 100;
+      display_all(find_col)  
+   }
+   */
+
+
 
 /*
    cli();
@@ -178,11 +204,12 @@ void maintain_disp(void)
 void port_init(void)
 {
    DDRA = 0xFF;   // dotmatrix VCC 
-   DDRB = 0x00;   // LEDs PB0: GREEN, PB1: RED
    DDRC = 0xFF;   // dotmatrix GND
-   PORTA = 0xFF;  // dotmatrix VCC 
-   PORTB = 0x00;  // LEDs PB0: GREEN, PB1: RED
+   PORTA = 0xFF;  // dotmatrix VCC
    PORTC = 0xFF;  // dotmatrix GND
+   DDRB = 0x00;   // LEDs PB0: GREEN, PB1: RED
+   PORTB = 0x00;  // LEDs PB0: GREEN, PB1: RED
+
    DDRF = 0xFE;   // ADC: flex PF0, force PF1
    DDRD = 0x00;   // External Interrupt: Switch PD0,
   // PORTF = 0x00;  // only ADC: flex PF0,..later force PF1
@@ -191,7 +218,7 @@ void port_init(void)
   // PORTD = 0xFF;  // External Interrupt: Switch PD0, PD1
 
    DDRG = 0x00;   // ? Switch: OFF = 0, ON = 1
-   PORTG = 0x00;  // ?PG2 = 0x04, PG3 = 0x08
+  // PORTG = 0x00;  // ?PG2 = 0x04, PG3 = 0x08
  
 }
 
@@ -200,7 +227,7 @@ void green_led(void)
    // PB0: Green LED for "START sign"
    DDRB = 0x01;
    PORTB = 0x01;
-   _delay_ms(200);
+   _delay_ms(100);
 }
 
 void red_led(void)
@@ -208,8 +235,26 @@ void red_led(void)
    // PB1: Red LED for "STOP sign"
    DDRB = 0x02;
    PORTB = 0x02;
-   _delay_ms(200);
+   _delay_ms(100);
 }
+
+void display_all(int adc_column) // PORTA, PORTC
+{  
+   dot_all[adc_column] = 0xFF;
+
+   // display all for find adc
+   int i,j;
+   for (j = 0; j < 30; j++){
+      for (i = 0; i < 8; i++){
+         PORTA = dot_all[i]; 
+         PORTC = dot_int_GND[i];
+         _delay_ms(2);
+      }
+   }
+   dot_all[adc_column] = 0x00;
+   PORTA = 0x00;
+}
+
 
 void dotmatrix_init(void) // PORTA, PORTC
 {  
@@ -284,7 +329,7 @@ unsigned int read_ADC(unsigned int adc_port)
    //unsigned int result;
    ADC_init();
 
-   ADMUX = adc_port;
+   ADMUX = 0x;
    ADMUX |= (0<<REFS1 | 1<<REFS0);
   
    ADCSRA |= (1<<ADSC); // ADC start conversion(single conversion)
@@ -293,7 +338,7 @@ unsigned int read_ADC(unsigned int adc_port)
    while(ADCSRA && (1<<ADSC)){}
    adcVectL = ADCL;
    adcVectH = ADCH;
-   adc_val = adcVectL + (adcVectH << 8);
+   adc_val = (adcVectH << 8) | adcVectL;
    //adc_val = (int)adcVectL + (int)(adcVectH << 8);
    // result = adc_val * 5.0/1024*100;
    result = adc_val;
@@ -304,7 +349,7 @@ unsigned int read_ADC(unsigned int adc_port)
 unsigned int get_force(int c_num)
 {  
    unsigned int force_port = 0x41; // AVCC, PF0: force sensor
-   volatile unsigned int v_force;
+   unsigned int v_force;
 
    if (c_num == 0){ return chance = 0; }
    else{
@@ -316,7 +361,7 @@ unsigned int get_force(int c_num)
 unsigned int get_flex(int c_num)
 {
    unsigned int flex_port = 0x42; // AVCC, PF1: flex sensor
-   volatile unsigned int v_flex;
+   unsigned int v_flex;
 
    if (c_num == 0){ return chance = 0; }
    else{
